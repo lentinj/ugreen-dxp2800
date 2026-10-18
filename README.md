@@ -66,11 +66,52 @@ The LEDs are, in order power / netdev / disk1 / disk2:
 ./ugreen_leds_cli disk2 -on -color 255 0 255
 ```
 
+The kernel module can be installed with:
+
 ```
 wget https://github.com/miskcoo/ugreen_leds_controller/releases/download/v0.3/led-ugreen-dkms_0.3_amd64.deb
 apt install dkms linux-headers-amd64
 dpkg -i led-ugreen-dkms_0.3_amd64.deb
 apt-get --fix-broken install
+```
+
+A pared down setup since I'm not that interested in all the stuff the utils module can do:
+
+```
+curl https://raw.githubusercontent.com/miskcoo/ugreen_leds_controller/20d158da863c56b15efdc925277465da91d36f6a/scripts/ugreen-probe-leds > /usr/local/sbin/ugreen-probe-leds
+chmod a+x /usr/local/sbin/ugreen-probe-leds
+
+cat <<EOF > /usr/local/sbin/ugreen-init-leds
+#!/bin/sh
+set -eu
+
+/usr/local/sbin/ugreen-init-leds
+
+echo 255 > /sys/class/leds/power/brightness
+echo "20 255 20" > /sys/class/leds/power/color
+
+echo 0 > /sys/class/leds/disk1/brightness
+echo 0 > /sys/class/leds/disk2/brightness
+echo 0 > /sys/class/leds/netdev/brightness
+EOF
+chmod a+x /usr/local/sbin/ugreen-init-leds
+
+cat <<EOF > /etc/systemd/system/ugreen-init-leds.service
+[Unit]
+Description=Init UGREEN LEDs
+After=systemd-modules-load.service
+Requires=systemd-modules-load.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ugreen-init-leds
+RemainAfterExit=true
+StandardOutput=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl enable ugreen-init-leds
 ```
 
 ## Serial port
